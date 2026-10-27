@@ -25,7 +25,7 @@
   </div>
 
   <header class="fl-hud">
-    <h1>🐟 Fishlands <span id="fl-ver">大白饭之岛 · v0.15</span></h1>
+    <h1>🐟 Fishlands <span id="fl-ver">大白饭之岛 · v0.17</span></h1>
     <div class="fl-res" id="fl-res-rice">
       <span class="ico"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><ellipse cx="12" cy="12" rx="8" ry="2.6" fill="#2e4a73"/><path d="M4 12 C4 18 7.5 21 12 21 C16.5 21 20 18 20 12 Q12 15.5 4 12 Z" fill="#4a6fa5" stroke="#3b5b8a" stroke-width="1.4" stroke-linejoin="round"/><path d="M7 17 q1.6 1.6 3.2 0 q1.6 -1.6 3.2 0 q1.6 1.6 3.2 0" fill="none" stroke="#cfe0f2" stroke-width="1.2" stroke-linecap="round"/></svg></span><b id="fl-rice-num">0</b><span class="cap" id="fl-rice-cap">大白饭</span>
       <div class="fl-bar" id="fl-rice-barw"><i id="fl-rice-bar"></i></div>
@@ -112,7 +112,7 @@
     <div class="fl-sp-inner">
       <div class="fl-sp-art" id="fl-sp-art"></div>
       <h1>🐟 Fishlands</h1>
-      <p>大白饭之岛 · 卡牌家园 · v0.15<br>钓大肥鱼 → 拖到电饭锅旁煮饭 → 攒够 200 碗大白饭，就会有新伙伴登场！</p>
+      <p>大白饭之岛 · 卡牌家园 · v0.17<br>钓大肥鱼 → 拖到电饭锅旁煮饭 → 攒够 200 碗大白饭，就会有新伙伴登场！</p>
       <button id="fl-start" type="button">开始游戏</button>
     </div>
   </div>
@@ -1565,7 +1565,7 @@ function tickCook(dt){
   /* 电饭锅自己煮：鱼进锅后按时间自动推进，不需要 DeepSeek 在旁边 */
   if (!cooker || !cooker.busy){ if (cooker) cooker.el.classList.remove('fl-cooking'); return; }
   cooker.el.classList.add('fl-cooking');
-  cooker.progress += dt / CFG.cookMs;
+  cooker.progress += dt * eff('chef') / CFG.cookMs;   /* 隐藏机制：DeepSeek 工作效率同步加速电饭煲 */
   cooker.bar.style.width = Math.min(100, cooker.progress * 100) + '%';
   cooker.bubT = (cooker.bubT || 0) - dt;
   if (cooker.bubT <= 0){ cooker.bubT = rand(380, 950); Snd.sfx.bubble(); }
@@ -1643,7 +1643,7 @@ function stepToward(c, dt, speed){
   var ctr = cardCenter(c);
   var dx = t[0]-ctr[0], dy = t[1]-ctr[1], d = Math.hypot(dx,dy);
   if (d < 6){ c.target = null; return true; }
-  var sp = speed * ((c.key && tempo[c.key] > 0) ? 1.5 : 1);
+  var sp = speed * (1 + glmMoveBonus()) * ((c.key && tempo[c.key] > 0) ? 1.5 : 1);
   var step = Math.min(sp * dt / 1000, d);
   c.x += dx/d*step; c.y += dy/d*step;
   if (Math.abs(dx) > 4) setFacing(c, dx > 0 ? 1 : -1);
@@ -1953,7 +1953,7 @@ function markGoal(id){
 }
 
 /* ================= cinematic：新伙伴登场（通用） ================= */
-var SPEAKER = { chef:'大白鱼', claude:'Claude', glm:'GLM', qwen:'Qwen' };
+var SPEAKER = { chef:'大白鱼', claude:'Claude', glm:'GLM', grok:'Grok', qwen:'Qwen' };
 function showIntro(key, lines, onDone){
   if (S.cinematic) return;
   S.cinematic = true;
@@ -1999,11 +1999,12 @@ function tutorialFor(key){
     next:'下一阶段：攒 200 碗大白饭，迎接 Claude！' };
   if (key === 'claude') return { key:'claude', name:'Claude · 书写官', items:[
     { icon:'📖', name:'书页：', text:'Claude 会自动写；在书桌按住往下划，4 笔 = 一页（越直越多）' },
-    { icon:'📚', name:'重置卡：', text:'100 书页装订成卡；拖给角色 = 心情回满 + 产能 +1%' },
+    { icon:'📚', name:'重置卡：', text:'100 书页装订成卡；Lv2 超过 100 页自动生产，Lv3 效果翻倍' },
     { icon:'🪙', name:'Token 币：', text:'做饭 Lv1 后双击电饭锅翻面铸币，100 饭 = 1 枚' } ],
     next:'下一阶段：攒 500 书页，迎接 GLM！' };
   if (key === 'glm') return { key:'glm', name:'GLM · 寻宝师', items:[
     { icon:'💠', name:'银矿：', text:'GLM 巡岛发现；Lv1 自动开采，Lv3 自动搬去熔炉' },
+    { icon:'💨', name:'疾风：', text:'Lv1/2/3 全场移动速度 +5/10/15%' },
     { icon:'🔨', name:'熔炼炉：', text:'把银粒/银块/大银块拖进去，10 进度 = 1 银条' },
     { icon:'🪙', name:'Token 币：', text:'GLM 还送你第一枚，拖给角色升级天赋' } ],
     next:'下一阶段：攒 10 根银条，迎接 Grok！' };
@@ -2197,14 +2198,15 @@ function consumeBook(c){
     S.books -= 1;
     bookCard.el.querySelector('.fl-badge').textContent = S.books;
   }
-  S.bookBoost[c.key] = (S.bookBoost[c.key] || 0) + 1;
+  S.bookBoost[c.key] = (S.bookBoost[c.key] || 0) + ((S.sk1.claude || 0) >= 3 ? 2 : 1);   /* Lv3：重置卡效果翻倍 */
   if (!CFG.noMood[c.key]){
     c.mood = CFG.mood.max;
     S.mood[c.key] = c.mood;
     renderMood(c);
   }
-  showBubble(c, saved ? '重置卡生效！这次没有消耗～' : '重置卡生效！心情满格，生产效率 +1%', 3000);
-  addFtext(c.x + c.w / 2, c.y - 6, saved ? '📚 未消耗 · 心情回满' : '📚 心情回满 · 产能 +1%', 'fl-gold');
+  var boost = (S.sk1.claude || 0) >= 3 ? 2 : 1;
+  showBubble(c, saved ? '重置卡生效！这次没有消耗～' : '重置卡生效！心情满格，生产效率 +' + boost + '%', 3000);
+  addFtext(c.x + c.w / 2, c.y - 6, saved ? '📚 未消耗 · 心情回满' : '📚 心情回满 · 产能 +' + boost + '%', 'fl-gold');
   if (!saved && S.books <= 0){ removeCard(bookCard); bookCard = null; }
   updateHUD(); persist();
 }
@@ -2291,6 +2293,22 @@ function tickClaude(dt){
   if (!claudeCard) return;
   if (upOpen && upTarget === claudeCard) return;   /* 面板打开：该角色暂停 */
   if (claudeCard.userPaused){ claudeCard.pauseT -= dt; if (claudeCard.pauseT > 0) return; claudeCard.userPaused = false; }
+  /* 一技能 Lv2+：书页超过 100 页后自动生产重置卡（不看心情，学会即生效） */
+  if ((S.sk1.claude || 0) >= 2){
+    autoBindT += dt;
+    if (autoBindT >= CFG.tier2Ms / eff('claude')){
+      autoBindT = 0;
+      if (S.pages > CFG.bookPageCost){
+        S.pages -= CFG.bookPageCost;
+        if (pageCard) pageCard.el.querySelector('.fl-badge').textContent = S.pages;
+        addBooks(1);
+        var abc = cardCenter(claudeCard);
+        addFtext(abc[0], claudeCard.y - 8, '-100 📖 +1 📚', 'fl-gold');
+        showBubble(claudeCard, '自动装订：重置卡 +1', 2000);
+        persist();
+      }
+    }
+  }
   if (bookReadTick(claudeCard, dt)) return;
   if (moodRest(claudeCard, dt)) return;
   if (S.automation){
@@ -2792,6 +2810,12 @@ function renderSkillPanel(c){
       + '<div class="fl-skill-now">大白饭高于「每分钟消耗 + ' + CFG.tokenRiceCost + '」（当前阈值 ' + Math.round(threshold) + '）时自动铸币；' + ([0,3,5,10][lv3f] || 0) + '% 概率不消耗大白饭</div>'
       + (lv3f < 3 ? '<button type="button" data-slot="3">学习到 ' + (lv3f + 1) + ' 级（' + skillCost('chef', lv3f) + ' 🪙）</button>' : '<em class="ok">已满级 ★3</em>')
       + '</div>';
+  } else if (c.key === 'glm'){
+    var lv3g = S.sk3.glm || 0;
+    slots += '<div class="fl-skill' + (lv3g > 0 ? ' fl-learned' : '') + '"><b>疾风' + (lv3g > 0 ? ' <span class="fl-stars">' + '★'.repeat(lv3g) + '</span>' : '') + '</b>'
+      + '<div class="fl-skill-now">全场移动速度 +5% / +10% / +15%（当前 +' + ([0,5,10,15][lv3g] || 0) + '%）</div>'
+      + (lv3g < 3 ? '<button type="button" data-slot="3">学习到 ' + (lv3g + 1) + ' 级（' + skillCost('glm', lv3g) + ' 🪙）</button>' : '<em class="ok">已满级 ★3</em>')
+      + '</div>';
   }
   document.getElementById('fl-up-slots').innerHTML = slots;
   document.getElementById('fl-up-sub').textContent = 'Token 币：' + S.tokens + ' 枚 · ' + LABELS[c.key] + ' 暂停中'
@@ -2859,6 +2883,9 @@ function onSkill3Up(key, lv){
   } else if (key === 'chef'){
     var cf = [0, 3, 5, 10][lv] || 0;
     if (chef) showBubble(chef, '余粮铸币：' + cf + '% 概率不消耗大白饭！', 2800);
+  } else if (key === 'glm'){
+    var gm2 = [0, 5, 10, 15][lv] || 0;
+    if (glmCard) showBubble(glmCard, '疾风：全场移动速度 +' + gm2 + '%！', 2800);
   }
   persist();
 }
@@ -3070,10 +3097,9 @@ var SKILLDEFS = {
     '自动搬鱼：一次最多搬 3 条；进入休息时 33% 概率吃鱼回满',
     '在钓鱼点产出的鱼变为闪光鱼，闪光鱼煮饭获得双倍大白饭' ] },
   claude:{ name:'装订重置卡', max:3, desc:[
-    '写书页（手动画竖线）',
-    '装订重置卡：100 📖 → 1 📚',
-    '装订产出 ×2',
-    '装订产出 ×4' ] },
+    '装订重置卡：100 📖 → 1 📚（书桌翻面后手动装订）',
+    '自动生产：书页超过 100 页后，自动装订出重置卡',
+    '重置卡效果翻倍：每张产能 +2%（心情依旧回满）' ] },
   glm:   { name:'勘探', max:3, desc:[
     '发现银矿，点击开采（银粒 5 / 银块 10）',
     '自动挖矿：发现的银矿自动开采成矿石',
@@ -3097,6 +3123,7 @@ function sk2Desc(key, lv){
                          : '当前：工作效率 +' + (50 * lv) + '%，大白饭消耗 ×1.5，' + moodTxt;
 }
 function eff(key){ return (1 + 0.5 * (S.sk2[key] || 0)) * (1 + 0.01 * (S.bookBoost[key] || 0)) * (tempo[key] > 0 ? 1.5 : 1); }
+function glmMoveBonus(){ return [0, 0.05, 0.10, 0.15][S.sk3.glm || 0] || 0; }   /* GLM 疾风：全场移动速度 */
 function bookSaveChance(){ return [0, 0.03, 0.05, 0.10][S.sk3.claude || 0] || 0; }
 function ricePerMin(){
   var total = 0;
@@ -3109,6 +3136,7 @@ function ricePerMin(){
   });
   return total;
 }
+var autoBindT = 0;
 var autoMintPassiveT = 0;
 function tickChefSkill(dt){
   var lv = S.sk3.chef || 0;
@@ -3190,14 +3218,15 @@ function dropBook(c){
     if (bookCard) bookCard.el.querySelector('.fl-badge').textContent = S.books;
   }
   var tbc = cardCenter(target);
-  S.bookBoost[target.key] = (S.bookBoost[target.key] || 0) + 1;
+  S.bookBoost[target.key] = (S.bookBoost[target.key] || 0) + ((S.sk1.claude || 0) >= 3 ? 2 : 1);   /* Lv3：重置卡效果翻倍 */
   if (!CFG.noMood[target.key]){
     target.mood = CFG.mood.max;
     S.mood[target.key] = target.mood;
     renderMood(target);
   }
-  showBubble(target, '重置卡生效！心情回满，生产效率 +1%' + (saved ? '（这次没有消耗）' : ''), 3200);
-  addFtext(tbc[0], target.y - 6, saved ? '📚 未消耗 · 心情回满' : '📚 心情回满 · 产能 +1%', 'fl-gold');
+  var boost = (S.sk1.claude || 0) >= 3 ? 2 : 1;
+  showBubble(target, '重置卡生效！心情回满，生产效率 +' + boost + '%' + (saved ? '（这次没有消耗）' : ''), 3200);
+  addFtext(tbc[0], target.y - 6, saved ? '📚 未消耗 · 心情回满' : '📚 心情回满 · 产能 +' + boost + '%', 'fl-gold');
   Snd.sfx.page();
   if (S.books <= 0){
     if (bookCard) removeCard(bookCard);
@@ -3423,6 +3452,7 @@ function renderShop(){
         if (unit === '📚'){ S.books -= it.cost; if (bookCard) bookCard.el.querySelector('.fl-badge').textContent = S.books; }
         else { S.gold -= it.cost; if (goldCard) goldCard.el.querySelector('.fl-badge').textContent = S.gold; }
         it.apply();
+        if (it.once) S.flags[it.once] = true;   /* 一次性商品：购买即置标志 */
         Snd.sfx.buy();
         if (it.once) Snd.sfx.fanfare();
         if (!S.flags.shop){
@@ -3496,6 +3526,7 @@ var FOUNTAIN_SVG = '<svg viewBox="0 0 120 110" width="120" aria-hidden="true">'
  +'<circle cx="60" cy="30" r="5" fill="#bfe6f4" stroke="#5fa8c4" stroke-width="2"/>'
  +'</svg>';
 function spawnFountain(){
+  S.flags.fountain = true;
   if (document.getElementById('fl-fountain')) return;
   var d = document.createElement('div');
   d.id = 'fl-fountain';
@@ -4062,7 +4093,7 @@ window.__fl = {
       sk1:JSON.parse(JSON.stringify(S.sk1)), sk2:JSON.parse(JSON.stringify(S.sk2)), sk3:JSON.parse(JSON.stringify(S.sk3)),
       mood:JSON.parse(JSON.stringify(S.mood)), bookBoost:JSON.parse(JSON.stringify(S.bookBoost)), saveChance:Math.round(bookSaveChance() * 100),
       grokMin:S.grokMin, grokMax:S.grokMax, ricePerMin:Math.round(ricePerMin() * 10) / 10, mintThreshold:CFG.tokenRiceCost + Math.round(ricePerMin() * 10) / 10,
-      tempo:JSON.parse(JSON.stringify(tempo)),
+      tempo:JSON.parse(JSON.stringify(tempo)), glmMove:glmMoveBonus(),
       qwen:S.qwen, reading:[chef, claudeCard, glmCard].filter(function(c){ return c && c.reading; }).map(function(c){ return c.key; }),
       hungry:[chef, claudeCard, glmCard, grokCard].filter(function(c){ return c && c.hungry; }).map(function(c){ return c.key; }),
       flags:JSON.parse(JSON.stringify(S.flags)),
