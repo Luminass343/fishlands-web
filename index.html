@@ -25,7 +25,7 @@
   </div>
 
   <header class="fl-hud">
-    <h1>🐟 Fishlands <span id="fl-ver">大白饭之岛 · v0.14</span></h1>
+    <h1>🐟 Fishlands <span id="fl-ver">大白饭之岛 · v0.15</span></h1>
     <div class="fl-res" id="fl-res-rice">
       <span class="ico"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><ellipse cx="12" cy="12" rx="8" ry="2.6" fill="#2e4a73"/><path d="M4 12 C4 18 7.5 21 12 21 C16.5 21 20 18 20 12 Q12 15.5 4 12 Z" fill="#4a6fa5" stroke="#3b5b8a" stroke-width="1.4" stroke-linejoin="round"/><path d="M7 17 q1.6 1.6 3.2 0 q1.6 -1.6 3.2 0 q1.6 1.6 3.2 0" fill="none" stroke="#cfe0f2" stroke-width="1.2" stroke-linecap="round"/></svg></span><b id="fl-rice-num">0</b><span class="cap" id="fl-rice-cap">大白饭</span>
       <div class="fl-bar" id="fl-rice-barw"><i id="fl-rice-bar"></i></div>
@@ -112,7 +112,7 @@
     <div class="fl-sp-inner">
       <div class="fl-sp-art" id="fl-sp-art"></div>
       <h1>🐟 Fishlands</h1>
-      <p>大白饭之岛 · 卡牌家园 · v0.14<br>钓大肥鱼 → 拖到电饭锅旁煮饭 → 攒够 200 碗大白饭，就会有新伙伴登场！</p>
+      <p>大白饭之岛 · 卡牌家园 · v0.15<br>钓大肥鱼 → 拖到电饭锅旁煮饭 → 攒够 200 碗大白饭，就会有新伙伴登场！</p>
       <button id="fl-start" type="button">开始游戏</button>
     </div>
   </div>
@@ -387,6 +387,9 @@
 .fl-tut-items .ic{ flex:none; width:22px; text-align:center; }
 .fl-tut-items b{ margin-right:4px; color:#4a3b33; }
 .fl-tut-next{ margin-top:8px; background:#fff3d6; border:2px solid #ffce54; border-radius:10px; padding:8px 12px; font-size:13.5px; font-weight:800; color:#6b4a0e; text-align:center; }
+/* Qwen 应援中 */
+.fl-card.fl-tempo .fl-card-body{ box-shadow:0 0 0 3px #ffce54, 0 8px 20px rgba(255,200,80,.5); }
+.fl-card.fl-tempo::after{ content:'⚡'; position:absolute; top:-12px; left:-12px; font-size:18px; filter:drop-shadow(0 2px 3px rgba(120,60,20,.4)); }
 #fl-ov-card .fl-card{ position:relative; transform:scale(1.5); transform-origin:center; animation:fl-popin .7s cubic-bezier(.2,1.5,.4,1); }
 #fl-ov-bubble{
   margin-top:30px; background:#fff; border-radius:14px; padding:12px 20px;
@@ -634,6 +637,7 @@
 .fl-island{ transition:inset 1.2s ease; }
 .fl-island.fl-expanded{ inset:18px 8px 18px 8px; }
 .fl-house{ position:absolute; z-index:2; pointer-events:none; filter:drop-shadow(0 6px 10px rgba(60,40,10,.25)); }
+.fl-fountain{ position:absolute; z-index:2; pointer-events:none; filter:drop-shadow(0 6px 10px rgba(30,80,110,.32)); }
 .fl-house .fl-house-tag{
   position:absolute; left:50%; bottom:-16px; transform:translateX(-50%);
   background:rgba(60,45,35,.82); color:#fff6ea; font-size:11.5px; font-weight:700;
@@ -993,7 +997,7 @@ var CFG = {
   spotTapGain: 13,         /* 连点一次的进度 */
   spotDecay: 26,           /* 上钩后进度每秒流失 */
   tokenRiceCost: 100,  /* 铸 1 枚 Token 消耗的大白饭 */
-  bookPageCost: 50,    /* 装订 1 本书需要的书页 */
+  bookPageCost: 100,   /* 装订 1 张重置卡需要的书页 */
   tier2Ms: 13000,      /* 二级制造（铸币/装订/熔炼出条）耗时，约为做饭的 2 倍 */
   smeltPerBar: 10,     /* 每 10 点熔炼进度 = 1 根劣质银条 */
   grokBars: 10,        /* 10 根劣质银条解锁 Grok */
@@ -1005,7 +1009,7 @@ var CFG = {
   /* 心情：每次完成一次工作 -20%，归零后停产闲逛，闲逛时缓慢回复 */
   mood: { max:100, workCost:20, regenPerSec:4 },
   /* 银矿熔炼价值：银粒 3 / 银块 5 / 大银块 8 */
-  silverVal: { grain:3, chunk:5, bigchunk:8 },
+  silverVal: { grain:5, chunk:10, bigchunk:20 },
 };
 
 /* ================= art ================= */
@@ -1180,7 +1184,7 @@ var S = {
   sk2: { chef:0, claude:0, glm:0, grok:0 },
   sk3: { chef:0, claude:0, glm:0, grok:0 },   /* 第 3 技能：目前只有 Grok 复利（0-50 级） */
   bookBoost: { chef:0, claude:0, glm:0, grok:0 },   /* 重置卡喂食的永久生产效率 % */
-  mood: { chef:100, claude:100, glm:100, grok:100 },
+  mood: { chef:100, claude:100, glm:100, grok:100, qwen:100 },
   cookerFace: 'cook',   /* cook | mint（需学会做饭 MAX） */
   deskFace: 'write',    /* write | bind（需学会装订重置卡） */
   seen: {},
@@ -1198,6 +1202,7 @@ var savedClaudePos = null, savedGlmPos = null, savedGrokPos = null, savedQwenPos
 var savedPins = null, cookerPinned = false, deskPinned = false, smelterPinned = false;
 var islandW = 0, islandH = 0;
 var zTop = 20;
+var tempo = { chef:0, claude:0, glm:0, grok:0 };   /* Qwen 应援：+50% 行动/生产，剩余毫秒 */
 var hadSave = false;
 
 var GOALS = [
@@ -1208,7 +1213,7 @@ var GOALS = [
   { id:'desk',    t:'在书桌上写一页书（画 4 笔竖线）', hidden:true },
   { id:'p500',    t:'攒够 500 书页，迎接新的伙伴', hidden:true },
   { id:'skill1',  t:'把 Token 币拖给 DeepSeek，学会「做饭 MAX」', hidden:true },
-  { id:'book',    t:'攒 50 书页，让 Claude 装订成重置卡', hidden:true },
+  { id:'book',    t:'攒 100 书页，让 Claude 装订成重置卡', hidden:true },
   { id:'silver',  t:'GLM 巡岛发现宝藏，把银粒/银块放进熔炼炉', hidden:true },
   { id:'grok',    t:'铸出 10 根劣质银条，迎接 Grok 大小姐', hidden:true },
   { id:'shop',    t:'用 Grok 金币在商店买点东西', hidden:true },
@@ -1340,7 +1345,7 @@ function addCard(kind, x, y){
   if (HIDDEN_RES[kind]) el.style.display = 'none';
   var h = '<div class="fl-card-body"><div class="fl-flip"><div class="fl-bob">' + ART[kind] + '</div></div>'
         + '<div class="fl-label">' + LABELS[kind] + '</div>';
-  if (CFG.hunger[kind] && !CFG.noMood[kind]) h += '<div class="fl-mood" title="心情 100 / 100"><i></i></div>';
+  if ((CFG.hunger[kind] || kind === 'qwen') && !CFG.noMood[kind]) h += '<div class="fl-mood" title="心情 100 / 100"><i></i></div>';
   if (kind === 'cooker' || kind === 'desk' || kind === 'smelter') h += '<div class="fl-cookbar"><i></i></div>';
   if (kind === 'cooker' || kind === 'desk' || kind === 'smelter') h += '<div class="fl-pin blue">📌</div>';
   if (kind === 'desk') h += '<div class="desk-inks"><i></i><i></i><i></i><i></i></div><div class="desk-pips"><i></i><i></i><i></i><i></i></div>';
@@ -1638,7 +1643,8 @@ function stepToward(c, dt, speed){
   var ctr = cardCenter(c);
   var dx = t[0]-ctr[0], dy = t[1]-ctr[1], d = Math.hypot(dx,dy);
   if (d < 6){ c.target = null; return true; }
-  var step = Math.min(speed * dt / 1000, d);
+  var sp = speed * ((c.key && tempo[c.key] > 0) ? 1.5 : 1);
+  var step = Math.min(sp * dt / 1000, d);
   c.x += dx/d*step; c.y += dy/d*step;
   if (Math.abs(dx) > 4) setFacing(c, dx > 0 ? 1 : -1);
   layout(c);
@@ -1993,22 +1999,23 @@ function tutorialFor(key){
     next:'下一阶段：攒 200 碗大白饭，迎接 Claude！' };
   if (key === 'claude') return { key:'claude', name:'Claude · 书写官', items:[
     { icon:'📖', name:'书页：', text:'Claude 会自动写；在书桌按住往下划，4 笔 = 一页（越直越多）' },
-    { icon:'📚', name:'重置卡：', text:'50 书页装订成卡；拖给角色 = 心情回满 + 产能 +1%' },
+    { icon:'📚', name:'重置卡：', text:'100 书页装订成卡；拖给角色 = 心情回满 + 产能 +1%' },
     { icon:'🪙', name:'Token 币：', text:'做饭 Lv1 后双击电饭锅翻面铸币，100 饭 = 1 枚' } ],
     next:'下一阶段：攒 500 书页，迎接 GLM！' };
   if (key === 'glm') return { key:'glm', name:'GLM · 寻宝师', items:[
-    { icon:'💠', name:'银矿：', text:'GLM 巡岛发现，点击开采；Lv3 起自动挖去熔炉' },
+    { icon:'💠', name:'银矿：', text:'GLM 巡岛发现；Lv1 自动开采，Lv3 自动搬去熔炉' },
     { icon:'🔨', name:'熔炼炉：', text:'把银粒/银块/大银块拖进去，10 进度 = 1 银条' },
     { icon:'🪙', name:'Token 币：', text:'GLM 还送你第一枚，拖给角色升级天赋' } ],
     next:'下一阶段：攒 10 根银条，迎接 Grok！' };
   if (key === 'grok') return { key:'grok', name:'Grok · 大小姐', items:[
     { icon:'💰', name:'Grok 金币：', text:'每 5 秒自动入账，学「聚财」后越来越多' },
-    { icon:'🛒', name:'商店：', text:'右上角购物：扩岛 5000 / 木屋 10000 / 补给品' },
+    { icon:'🛒', name:'商店：', text:'右上角购物：木屋 5000 / 喷泉 10000 / 补给品' },
     { icon:'📚', name:'重置卡：', text:'商店可用重置卡换金币和 Token' } ],
     next:'下一阶段：买下木屋，迎接 Qwen 和三个委托！' };
   if (key === 'qwen') return { key:'qwen', name:'Qwen · 调度官', items:[
     { icon:'📋', name:'三个委托：', text:'右上角目标栏查看；委托一全员 1、2 技能满级' },
-    { icon:'🪙', name:'Token：', text:'余粮铸币 + 手动铸币，攒 180 枚' } ],
+    { icon:'⚡', name:'应援：', text:'游荡寻找伙伴互动，目标 +50% 行动/生产 10 秒（消耗一半心情）' },
+    { icon:'🪙', name:'Token：', text:'余粮铸币 + 手动铸币，攒 84 枚' } ],
     next:'下一阶段：完成委托一，迎接委托二！' };
   return null;
 }
@@ -2122,6 +2129,7 @@ function initChar(c, key){
   c.carry = [];
   c.reading = false; c.readT = 0;
   var h = CFG.hunger[key];
+  if (key === 'qwen'){ c.mood = S.mood.qwen == null ? 100 : S.mood.qwen; c.resting = false; renderMood(c); }
   if (h){ c.hungerT = h.every * rand(.5, 1); c.hungry = false; }
   if (h){
     if (CFG.noMood[key]){ c.mood = CFG.mood.max; c.resting = false; }
@@ -2146,14 +2154,31 @@ function renderMood(c){
 }
 function moodWork(c){
   if (!c || c.mood == null) return;
-  c.mood = clamp(c.mood - CFG.mood.workCost, 0, CFG.mood.max);
+  var mult = [1, 0.85, 0.7, 0.5][S.sk2[c.key] || 0] || 1;   /* 2 技能：效率升级同时降低心情消耗 */
+  c.mood = clamp(c.mood - Math.round(CFG.mood.workCost * mult), 0, CFG.mood.max);
   S.mood[c.key] = c.mood;
   renderMood(c);
   if (c.mood <= 0 && !c.resting && !c.reading){
     c.target = null;
     if (c === chef) releaseAutoFish();
     if (c.mode === 'writing' || c.mode === 'digging'){ c.mode = 'idle'; c.el.classList.remove('fl-writing'); }
-    if (!CFG.noMood[c.key] && bookCard && S.books > 0){
+    if (c === chef && (S.sk1.chef || 0) >= 2){
+      var snack = null;
+      cards.forEach(function(k){ if ((k.kind === 'fish' || k.kind === 'shinefish') && !k.queued && !snack) snack = k; });
+      if (snack && Math.random() < 0.33){
+        removeCard(snack);
+        c.mood = CFG.mood.max;
+        S.mood[c.key] = c.mood;
+        renderMood(c);
+        var scc = cardCenter(c);
+        splash(scc[0], scc[1] + 14);
+        showBubble(c, '烤鱼真香！心情回满～', 3000);
+        addFtext(scc[0], c.y - 8, '🐟 心情回满', 'fl-gold');
+        updateHUD(); persist();
+        return;
+      }
+    }
+    if (!CFG.noMood[c.key] && c.key !== 'qwen' && bookCard && S.books > 0){
       c.reading = true; c.readT = 0;
       showBubble(c, '心情见底…我去看会儿书～', 3400);
       addFtext(c.x + c.w / 2, c.y - 4, '📖 找书充电');
@@ -2209,7 +2234,7 @@ function bookReadTick(c, dt){
 function moodRest(c, dt){
   if (!c || !c.resting) return false;
   /* 如果岛上有书，优先去读书而不是原地闲逛回心情 */
-  if (!CFG.noMood[c.key] && bookCard && S.books > 0){
+  if (!CFG.noMood[c.key] && c.key !== 'qwen' && bookCard && S.books > 0){
     c.resting = false; c.reading = true; c.readT = 0; c.target = null;
     showBubble(c, '还是去看书吧～', 2400);
     return true;
@@ -2241,7 +2266,7 @@ function tickHunger(dt){
     if (!h) return;
     c.hungerT -= dt;
     if (c.hungerT > 0) return;
-    var cost = Math.ceil(h.cost * ((S.sk2[c.key] || 0) >= 1 ? 1.5 : 1));
+    var cost = Math.max(1, Math.floor(h.cost * ((S.sk2[c.key] || 0) >= 1 ? 1.5 : 1) * (S.flags.fountain ? 0.75 : 1)));
     if (S.rice >= cost){
       changeRice(-cost);
       c.hungerT = h.every;
@@ -2280,9 +2305,9 @@ function tickClaude(dt){
         if (pageCard) pageCard.el.querySelector('.fl-badge').textContent = S.pages;
         addBooks(Math.pow(2, Math.max(0, (S.sk1.claude || 0) - 1)));
         moodWork(claudeCard);
-        addFtext(ah[0], ah[1] - 46, '-50 📖 +1 📚', 'fl-gold');
+        addFtext(ah[0], ah[1] - 46, '-100 📖 +1 📚', 'fl-gold');
       } else {
-        var an = irand(1 + acb, 3 + acb);
+        var an = irand(5 + acb, 10 + acb);
         Snd.sfx.scratch(0.55);
         addPages(an);
         moodWork(claudeCard);
@@ -2311,7 +2336,7 @@ function tickClaude(dt){
           if (pageCard) pageCard.el.querySelector('.fl-badge').textContent = S.pages;
           addBooks(Math.pow(2, Math.max(0, (S.sk1.claude || 0) - 1)));
           moodWork(claudeCard);
-          addFtext(ctr[0] + 44, deskCard.y - 2, '-50 📖 +1 📚', 'fl-gold');
+          addFtext(ctr[0] + 44, deskCard.y - 2, '-100 📖 +1 📚', 'fl-gold');
         } else {
           S.bindBlockedT = (S.bindBlockedT || 0) + 1;
           if (S.bindBlockedT >= 2){
@@ -2324,7 +2349,7 @@ function tickClaude(dt){
         }
       } else {
         var cb = S.buffs.claude || 0;
-        var n = irand(1 + cb, 3 + cb);
+        var n = irand(5 + cb, 10 + cb);
         Snd.sfx.scratch(0.55);
         addPages(n);
         moodWork(claudeCard);
@@ -2412,26 +2437,28 @@ function tickGlm(dt){
       var glv = S.sk1.glm || 0;
       moodWork(glmCard);   /* 一次发现扣一次心情；若累到 0 就退回给玩家点击 */
       var gcc = cardCenter(glmCard);
-      if (glv >= 3 && smelterCard && !glmCard.resting && !glmCard.reading){
-        /* Lv3：自己挖出来并搬运；25% 概率一次挖到两块大银块 */
-        var two = Math.random() < 0.25;
-        var one = addCard('bigchunk', clamp(glmCard.x + 16, 8, islandW - 115), clamp(glmCard.y + 48, 40, islandH - 125));
-        one.el.classList.add('fl-popin');
-        var loot = [one];
-        if (two){
-          var extra = addCard('bigchunk', clamp(glmCard.x + 84, 8, islandW - 115), clamp(glmCard.y + 62, 40, islandH - 125));
-          extra.el.classList.add('fl-popin');
-          loot.push(extra);
-        }
-        glmCard.carry = loot;
-        glmCard.mode = 'hauling';
-        var smc0 = cardCenter(smelterCard);
-        glmCard.target = [smc0[0], smc0[1] + 70];
+      if (glv >= 1){
+        /* Lv1+：自动挖矿，矿石直接落地；Lv3 再自动搬运，25% 双份 */
+        var lootKinds = [glv >= 2 ? 'bigchunk' : 'chunk'];
+        if (glv >= 3 && Math.random() < 0.25) lootKinds.push('bigchunk');
+        var made = lootKinds.map(function(kind, i){
+          var c = addCard(kind, clamp(glmCard.x + 16 + i * 70, 8, islandW - 115), clamp(glmCard.y + 48, 40, islandH - 125));
+          c.el.classList.add('fl-popin');
+          return c;
+        });
         splash(gcc[0], gcc[1] + 14);
-        addFtext(gcc[0], glmCard.y - 8, two ? '⛏ 双份银矿！搬去熔炉～' : '⛏ 挖到银矿，搬去熔炉～');
-        showBubble(glmCard, two ? '运气爆棚，一次两块！' : '挖到了，我搬去熔炉～', 2600);
+        if (glv >= 3 && smelterCard && !glmCard.resting && !glmCard.reading){
+          glmCard.carry = made;
+          glmCard.mode = 'hauling';
+          var smc0 = cardCenter(smelterCard);
+          glmCard.target = [smc0[0], smc0[1] + 70];
+          addFtext(gcc[0], glmCard.y - 8, lootKinds.length > 1 ? '⛏ 双份银矿！搬去熔炉～' : '⛏ 挖到银矿，搬去熔炉～');
+          showBubble(glmCard, lootKinds.length > 1 ? '运气爆棚，一次两块！' : '挖到了，我搬去熔炉～', 2600);
+        } else {
+          addFtext(gcc[0], glmCard.y - 8, '⛏ 自动开采！矿石已落地');
+        }
       } else {
-        /* Lv0-2 或太累：留给玩家点击开采 */
+        /* 未学习：留给玩家点击开采 */
         spawnDeposit(glmCard.x + rand(-20, 60), glmCard.y + 40);
         splash(gcc[0], gcc[1] + 14);
         addFtext(gcc[0], glmCard.y - 8, '✨ 发现银矿！点击开采');
@@ -2987,7 +3014,7 @@ function tryFlip(c){
     setTimeout(function(){
       S.deskFace = S.deskFace === 'write' ? 'bind' : 'write';
       applyDeskFace();
-      showBubble(deskCard, S.deskFace === 'bind' ? '翻面：装订台！（50 📖 → 1 📚）' : '翻面：书桌！（按住往下划写字）');
+      showBubble(deskCard, S.deskFace === 'bind' ? '翻面：装订台！（100 📖 → 1 📚）' : '翻面：书桌！（按住往下划写字）');
       persist();
     }, 150);
   }
@@ -3034,25 +3061,24 @@ function tickFoundry(dt){
 }
 
 /* ---- 技能定义（可升级） ---- */
-var UPCOST = [1, 3, 5];   /* 升到 1/2/3 级的基础 Token 消耗 */
-var CHAR_BASE = { chef:1, claude:2, glm:3, grok:4 };   /* 角色基础消耗倍率 */
-function skillCost(key, lv){ return (CHAR_BASE[key] || 1) * UPCOST[lv]; }
+var CHAR_BASE = { chef:1, claude:2, glm:3, grok:4 };   /* 角色基础消耗 */
+function skillCost(key, lv){ return (CHAR_BASE[key] || 1) + lv; }   /* Lv1/2/3 = 基础 + 0/1/2 */
 var SKILLDEFS = {
   chef:  { name:'做饭 MAX', max:3, desc:[
     '把鱼拖进电饭锅，锅会自动煮饭（不需要 DeepSeek 操作）',
     '解锁铸币机：双击电饭锅翻面铸币（100 🍚 → 1 🪙）',
-    '自动搬鱼：一次最多搬 3 条，直接下锅/排队',
+    '自动搬鱼：一次最多搬 3 条；进入休息时 33% 概率吃鱼回满',
     '在钓鱼点产出的鱼变为闪光鱼，闪光鱼煮饭获得双倍大白饭' ] },
   claude:{ name:'装订重置卡', max:3, desc:[
     '写书页（手动画竖线）',
-    '装订重置卡：50 📖 → 1 📚',
+    '装订重置卡：100 📖 → 1 📚',
     '装订产出 ×2',
     '装订产出 ×4' ] },
   glm:   { name:'勘探', max:3, desc:[
-    '发现银粒',
-    '发现银块（5 进度）',
-    '发现大银块（10 进度）',
-    '自动挖出并搬运银矿到熔炉，25% 概率一次挖到两块' ] },
+    '发现银矿，点击开采（银粒 5 / 银块 10）',
+    '自动挖矿：发现的银矿自动开采成矿石',
+    '挖出大银块（20 进度）',
+    '自动搬运到熔炉；25% 概率一次挖到两块' ] },
   grok:  { name:'聚财', max:3, desc:[
     '被动：每消耗 1 枚 Token 币，随机增加金币下限或上限（需先学习 Lv1）',
     '每消耗 1 枚 Token，判定 1 次，随机让金币下限或上限 +1',
@@ -3066,10 +3092,11 @@ var SKILL2DEFS = {
   grok:  { name:'印钞狂热' },
 };
 function sk2Desc(key, lv){
-  return lv === 0 ? '学习后：工作效率 +50%，大白饭消耗 ×1.5'
-                  : '当前：工作效率 +' + (50 * lv) + '%，大白饭消耗 ×1.5';
+  var moodTxt = '心情消耗 -' + [15, 30, 50][(lv || 1) - 1] + '%';
+  return (lv || 0) === 0 ? '学习后：工作效率 +50%，大白饭消耗 ×1.5，' + moodTxt
+                         : '当前：工作效率 +' + (50 * lv) + '%，大白饭消耗 ×1.5，' + moodTxt;
 }
-function eff(key){ return (1 + 0.5 * (S.sk2[key] || 0)) * (1 + 0.01 * (S.bookBoost[key] || 0)); }
+function eff(key){ return (1 + 0.5 * (S.sk2[key] || 0)) * (1 + 0.01 * (S.bookBoost[key] || 0)) * (tempo[key] > 0 ? 1.5 : 1); }
 function bookSaveChance(){ return [0, 0.03, 0.05, 0.10][S.sk3.claude || 0] || 0; }
 function ricePerMin(){
   var total = 0;
@@ -3077,8 +3104,8 @@ function ricePerMin(){
   Object.keys(chars).forEach(function(k){
     if (!chars[k]) return;
     var h = CFG.hunger[k]; if (!h) return;
-    var mult = (S.sk2[k] || 0) >= 1 ? 1.5 : 1;
-    total += Math.ceil(h.cost * mult) * (60000 / h.every);
+    var meal = Math.max(1, Math.floor(h.cost * ((S.sk2[k] || 0) >= 1 ? 1.5 : 1) * (S.flags.fountain ? 0.75 : 1)));
+    total += meal * (60000 / h.every);
   });
   return total;
 }
@@ -3270,16 +3297,69 @@ function checkQwenTasks(){
   toast('🎉 Qwen 委托一完成：全员 1、2 技能满级！奖励 10 Token');
   if (qwenCard) showBubble(qwenCard, '委托一完成。效率即正义。', 4200);
 }
+function qwenSpendMood(){
+  if (!qwenCard) return;
+  qwenCard.mood = clamp((qwenCard.mood == null ? 100 : qwenCard.mood) - 50, 0, CFG.mood.max);
+  S.mood.qwen = qwenCard.mood;
+  renderMood(qwenCard);
+  if (qwenCard.mood <= 0 && !qwenCard.resting){
+    qwenCard.resting = true;
+    qwenCard.target = null; qwenCard.tChar = null;
+    showBubble(qwenCard, '累了…休息一下再给大家加油～', 3000);
+    addFtext(qwenCard.x + qwenCard.w / 2, qwenCard.y - 4, '💤 心情耗尽');
+  }
+  persist();
+}
 function tickQwen(dt){
   if (!qwenCard) return;
   if (upOpen && upTarget === qwenCard) return;
   if (qwenCard.userPaused){ qwenCard.pauseT -= dt; if (qwenCard.pauseT > 0) return; qwenCard.userPaused = false; }
-  if (qwenCard.target){ stepToward(qwenCard, dt, 70); return; }
+  if (moodRest(qwenCard, dt)) return;
+  var chars = { chef:chef, claude:claudeCard, glm:glmCard, grok:grokCard };
+  /* 找到目标伙伴：走近互动 */
+  var tkey = qwenCard.tChar;
+  if (tkey && chars[tkey]){
+    var cc = cardCenter(qwenCard), tc = cardCenter(chars[tkey]);
+    if (dist(cc[0], cc[1], tc[0], tc[1]) < 70){
+      tempo[tkey] = 10000;
+      var tcc = cardCenter(chars[tkey]);
+      addFtext(tcc[0], chars[tkey].y - 8, '⚡ 效率 +50% 10s', 'fl-gold');
+      showBubble(qwenCard, pick(['加油哦，效率拉满！', '摸摸头，干劲十足～', '给你充能！']), 2400);
+      showBubble(chars[tkey], pick(['谢谢 Qwen！', '元气满满！', '这就火力全开！']), 2400);
+      Snd.sfx.levelup();
+      qwenSpendMood();
+      qwenCard.tChar = null;
+      qwenCard.target = null;
+      qwenCard.wT2 = rand(2500, 4500);
+      return;
+    }
+    qwenCard.target = [tc[0], tc[1] + 10];
+    stepToward(qwenCard, dt, 90);
+    return;
+  }
+  /* 没有目标：闲逛，冷却后挑一个伙伴 */
   qwenCard.wT2 = (qwenCard.wT2 || 0) - dt;
   if (qwenCard.wT2 <= 0){
     qwenCard.wT2 = rand(4500, 9000);
-    qwenCard.target = [rand(60, islandW - qwenCard.w - 60), rand(80, islandH - qwenCard.h - 60)];
+    var keys = ['chef','claude','glm','grok'].filter(function(k){ return chars[k]; });
+    if (keys.length && qwenCard.mood > 0){
+      var t = pick(keys);
+      qwenCard.tChar = t;
+      qwenCard.target = cardCenter(chars[t]);
+      showBubble(qwenCard, '我去给' + LABELS[t] + '加油～', 2200);
+    } else {
+      qwenCard.target = [rand(60, islandW - qwenCard.w - 60), rand(80, islandH - qwenCard.h - 60)];
+    }
   }
+  if (qwenCard.target) stepToward(qwenCard, dt, 90);
+}
+function tickTempo(dt){
+  ['chef','claude','glm','grok'].forEach(function(k){
+    var card = k === 'chef' ? chef : (k === 'claude' ? claudeCard : (k === 'glm' ? glmCard : grokCard));
+    if (!card) return;
+    if (tempo[k] > 0) tempo[k] = Math.max(0, tempo[k] - dt);
+    card.el.classList.toggle('fl-tempo', tempo[k] > 0);
+  });
 }
 function startQwenIntro(){
   if (S.qwen) return;
@@ -3307,8 +3387,8 @@ function startQwenIntro(){
 }
 /* ---- Grok 商店 ---- */
 var SHOP = [
-  { icon:'🏝️', name:'扩大岛屿', sub:'全屏大岛（一次买断）', cost:5000, once:'islandBig', apply:function(){ expandIsland(); } },
-  { icon:'🏠', name:'建造木屋', sub:'自动化：煮饭/铸币/写书全自动', cost:10000, once:'house', apply:function(){ buildHouse(); } },
+  { icon:'🏠', name:'建造木屋', sub:'自动化：煮饭/铸币/写书全自动', cost:5000, once:'house', apply:function(){ buildHouse(); } },
+  { icon:'⛲', name:'喷水池', sub:'设立岛中央：全员食物消耗 -25%', cost:10000, once:'fountain', apply:function(){ spawnFountain(); } },
   { icon:'🍚', name:'大白饭 ×20', sub:'给大家补补', cost:8,  apply:function(){ changeRice(20); } },
   { icon:'🐟', name:'大肥鱼 ×2', sub:'直接送上岛', cost:12, apply:function(){ spawnFishAt([islandW * 0.5, islandH * 0.5], true); spawnFishAt([islandW * 0.6, islandH * 0.55], true); } },
   { icon:'📖', name:'书页 ×20',  sub:'写不动就买', cost:15, apply:function(){ addPages(20); } },
@@ -3406,6 +3486,24 @@ function spawnHouse(){
   d.style.left = '56%';
   d.style.top = '-12px';
   island.appendChild(d);
+}
+var FOUNTAIN_SVG = '<svg viewBox="0 0 120 110" width="120" aria-hidden="true">'
+ +'<ellipse cx="60" cy="100" rx="46" ry="8" fill="rgba(70,110,140,.22)"/>'
+ +'<ellipse cx="60" cy="88" rx="42" ry="13" fill="#8fd0e8" stroke="#5fa8c4" stroke-width="3"/>'
+ +'<rect x="52" y="62" width="16" height="26" rx="4" fill="#d7e3ec" stroke="#9fb4c4" stroke-width="2.5"/>'
+ +'<ellipse cx="60" cy="60" rx="24" ry="8" fill="#a8dcec" stroke="#5fa8c4" stroke-width="2.5"/>'
+ +'<path d="M60 32 q-14 12 -2 26 M60 32 q14 12 2 26" stroke="#8fd0e8" stroke-width="4" fill="none" stroke-linecap="round"/>'
+ +'<circle cx="60" cy="30" r="5" fill="#bfe6f4" stroke="#5fa8c4" stroke-width="2"/>'
+ +'</svg>';
+function spawnFountain(){
+  if (document.getElementById('fl-fountain')) return;
+  var d = document.createElement('div');
+  d.id = 'fl-fountain';
+  d.className = 'fl-fountain';
+  d.innerHTML = FOUNTAIN_SVG + '<div class="fl-house-tag">⛲ 全岛喷泉：食物消耗 -25%</div>';
+  island.appendChild(d);
+  d.style.left = Math.max(8, islandW / 2 - 60) + 'px';
+  d.style.top = Math.max(8, islandH / 2 - 62) + 'px';
 }
 function buildHouse(){
   if (S.flags.house) return;
@@ -3591,6 +3689,7 @@ function boot(){
     cooker.busy = false; cooker.cur = null; cooker.queue = []; cooker.progress = 0;
     cooker.bar = cooker.el.querySelector('.fl-cookbar i');
   }
+  if (S.flags.fountain) spawnFountain();
   riceCard = layoutPos('rice') ? spawnAt('rice', 178, islandH - riceH())
                                : addCard('rice', 178, islandH - riceH());
   riceCard.el.querySelector('.fl-badge').textContent = S.rice;
@@ -3767,6 +3866,7 @@ function boot(){
       tickGlm(dt);
       tickGrok(dt);
       tickQwen(dt);
+      tickTempo(dt);
       tickAuto(dt);
       tickDeposits(dt);
     }
@@ -3962,6 +4062,7 @@ window.__fl = {
       sk1:JSON.parse(JSON.stringify(S.sk1)), sk2:JSON.parse(JSON.stringify(S.sk2)), sk3:JSON.parse(JSON.stringify(S.sk3)),
       mood:JSON.parse(JSON.stringify(S.mood)), bookBoost:JSON.parse(JSON.stringify(S.bookBoost)), saveChance:Math.round(bookSaveChance() * 100),
       grokMin:S.grokMin, grokMax:S.grokMax, ricePerMin:Math.round(ricePerMin() * 10) / 10, mintThreshold:CFG.tokenRiceCost + Math.round(ricePerMin() * 10) / 10,
+      tempo:JSON.parse(JSON.stringify(tempo)),
       qwen:S.qwen, reading:[chef, claudeCard, glmCard].filter(function(c){ return c && c.reading; }).map(function(c){ return c.key; }),
       hungry:[chef, claudeCard, glmCard, grokCard].filter(function(c){ return c && c.hungry; }).map(function(c){ return c.key; }),
       flags:JSON.parse(JSON.stringify(S.flags)),
@@ -3974,7 +4075,8 @@ window.__fl = {
   },
   giveFish: function(n){ n = n || 1; for (var i = 0; i < n; i++) spawnFishAt([islandW * rand(.3, .7), islandH * rand(.45, .75)], true); },
   fast: function(){ if (cooker && cooker.busy) cooker.progress = 1.4; },
-  setPages: function(n){ S.pages = n; if (pageCard) pageCard.el.querySelector('.fl-badge').textContent = S.pages; updateHUD(); },
+  setPages: function(n){ S.pages = n; if (pageCard) pageCard.el.querySelector('.fl-badge').textContent = S.pages; updateHUD();
+    if (S.pages >= CFG.pageGoal && !S.glm && !S.cinematic) setTimeout(startGlmIntro, 700); },
   claude: function(){ S.claude = false; startClaudeIntro(); },
   glm: function(){ S.glm = false; startGlmIntro(); },
   spot: function(){ return S.spot; },
@@ -3982,6 +4084,7 @@ window.__fl = {
   setSk3: function(n){ S.sk3.grok = clamp(n || 0, 0, 50); persist(); return S.sk3.grok; },
   setSk3Key: function(k, n){ S.sk3[k] = clamp(n || 0, 0, k === 'grok' ? 50 : 3); persist(); return S.sk3[k]; },
   qwenCheck: function(){ checkQwenTasks(); return { qwen:S.qwen, qwen1:!!S.flags.qwen1, tokens:S.tokens }; },
+  flipDesk: function(){ tryFlip(deskCard); return S.deskFace; },
   setSk1: function(k, n){ S.sk1[k] = clamp(n || 0, 0, 3); persist(); return S.sk1[k]; },
   setSk2: function(k, n){ S.sk2[k] = clamp(n || 0, 0, 3); persist(); return S.sk2[k]; },
   setMood: function(k, n){
@@ -3999,7 +4102,7 @@ window.__fl = {
     var step = 50, n = Math.round((sec || 1) * 1000 / step);
     for (var i = 0; i < n; i++){
       tickChef(step); tickChefSkill(step); tickCook(step); tickFoundry(step); tickSpot(step); tickHunger(step);
-      tickClaude(step); tickGlm(step); tickGrok(step); tickAuto(step); tickDeposits(step);
+      tickClaude(step); tickGlm(step); tickGrok(step); tickQwen(step); tickTempo(step); tickAuto(step); tickDeposits(step);
     }
     updateHUD();
     return { rice:S.rice, pages:S.pages, tokens:S.tokens, bars:S.bars, gold:S.gold, fish:looseFish(), mood:JSON.parse(JSON.stringify(S.mood)) };
