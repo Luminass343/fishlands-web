@@ -129,6 +129,7 @@
     <div class="fl-finale-box">
       <h1>🎉 恭喜你 通关！！</h1>
       <p id="fl-finale-text"></p>
+      <ul id="fl-finale-stats"></ul>
       <button id="fl-finale-ok" type="button">继续游玩</button>
     </div>
   </div>
@@ -402,6 +403,11 @@
 .fl-finale-box h1{ font-size:34px; margin:0 0 10px; color:#4a3b33; }
 .fl-finale-box p{ font-size:14px; color:#6b5744; margin:0 0 16px; line-height:1.7; }
 .fl-finale-box b{ color:#b85c3f; }
+.fl-finale-stats{ list-style:none; margin:0 0 18px; padding:0; text-align:left; font-size:13px; color:#6b5744; max-height:38vh; overflow-y:auto; }
+.fl-finale-stats li{ display:flex; justify-content:space-between; gap:18px; padding:3px 2px; border-bottom:1px dashed #e8dcc8; }
+.fl-finale-stats li:last-child{ border-bottom:none; }
+.fl-finale-stats .ic{ width:20px; flex:none; }
+.fl-finale-stats b{ color:#b85c3f; }
 .fl-finale-box button{ border:none; background:#d97757; color:#fff; font-weight:800; border-radius:999px; padding:10px 26px; cursor:pointer; font-family:inherit; font-size:14px; }
 /* Qwen 应援中 */
 .fl-card.fl-tempo .fl-card-body{ box-shadow:0 0 0 3px #ffce54, 0 8px 20px rgba(255,200,80,.5); }
@@ -1026,7 +1032,7 @@ var CFG = {
   noMood: { grok:1 },
   /* 心情：每次完成一次工作 -20%，归零后停产闲逛，闲逛时缓慢回复 */
   mood: { max:100, workCost:20, regenPerSec:4 },
-  /* 银矿熔炼价值：银粒 3 / 银块 5 / 大银块 8 */
+  /* 银矿熔炼进度：银粒 5 / 银块 10 / 大银块 20（每 10 进度出 1 根银条） */
   silverVal: { grain:5, chunk:10, bigchunk:20 },
 };
 
@@ -1200,9 +1206,9 @@ var S = {
   gptTotal: 0,
   cinematic: false,
   splashDone: false,
-  automation: false,
   buffs: { chef:0, claude:0, glm:0, grok:0 },
-  flags: { fish:false, cook:false, rice:false, goal200:false, desk:false, p500:false, skill1:false, book:false, mint:false, silver:false, silver2:false, smelter:false, grok:false, shop:false, qwen1:false, qwen2:false, qwen3:false },
+  stats: { fishCooked:0, riceProduced:0, pagesWritten:0, booksBound:0, tokensMinted:0, barsSmelted:0, goldEarned:0, spotCatches:0, cheers:0, playMs:0 },
+  flags: { fish:false, cook:false, rice:false, goal200:false, desk:false, p500:false, skill1:false, book:false, mint:false, silver:false, silver2:false, smelter:false, grok:false, shop:false, qwen1:false, qwen2:false, qwen3:false, finished:false },
   skills: { chef:false, claude:false, glm:false },
   sk1: { chef:0, claude:0, glm:0, grok:0 },
   sk2: { chef:0, claude:0, glm:0, grok:0 },
@@ -1244,7 +1250,7 @@ var GOALS = [
    { id:'next',    t:'完成 Qwen 委托，孵化最后的伙伴', hidden:true },
   { id:'qwen1',   t:'Qwen 委托一：全员 1、2 技能升满', hidden:true },
   { id:'qwen2',   t:'Qwen 委托二：建造露天舞台（15000 金）', hidden:true },
-   { id:'qwen3',   t:'Qwen 委托三：购买神秘蛋（50000 金）', hidden:true },
+   { id:'qwen3',   t:'Qwen 委托三：购买神秘蛋（20000 金）', hidden:true },
 ];
 
 /* ================= persist ================= */
@@ -1258,7 +1264,7 @@ function saveData(){
   return {
     rice: S.rice, pages: S.pages, tokens: S.tokens, books: S.books, bars: S.bars, gold: S.gold,
     grokMin: S.grokMin, grokMax: S.grokMax,
-    automation: S.automation, buffs: S.buffs,
+    buffs: S.buffs, stats: S.stats,
     claude: S.claude, glm: S.glm, grok: S.grok, qwen: S.qwen, gpt: S.gpt, gptFed: S.gptFed, gptNext: S.gptNext, gptTotal: S.gptTotal, sk1: S.sk1, sk2: S.sk2, sk3: S.sk3, bookBoost: S.bookBoost, mood: S.mood,
     cookerFace: S.cookerFace, deskFace: S.deskFace, pins: { cooker: !!cookerPinned, desk: !!deskPinned, smelter: !!smelterPinned },
     flags: S.flags, seen: S.seen,
@@ -1320,8 +1326,8 @@ function restore(){
     S.gold = d.gold || 0;
     S.grokMin = d.grokMin || 1;
     S.grokMax = d.grokMax || 50;
-    S.automation = false;   /* v0.19：木屋自动化移除，木屋改为心情光环建筑 */
     if (d.buffs) for (var bk in S.buffs) if (bk in d.buffs) S.buffs[bk] = (+d.buffs[bk] || 0);
+    if (d.stats) for (var stK in S.stats) if (stK in d.stats) S.stats[stK] = (+d.stats[stK] || 0);
     S.claude = !!d.claude;
     S.glm = !!d.glm;
     S.grok = !!d.grok;
@@ -1490,7 +1496,7 @@ function onTap(c){
     showBubble(chef, pick(['咕噜噜～','今天也要努力做饭哦！','白饭最香了！','累了就歇一会儿～']));
   } else if (c === cooker){
     Snd.sfx.click();
-    showBubble(cooker, S.cookerFace === 'mint' ? '铸币机：10 🍚 → 1 🪙（双击翻回电饭锅）' : '把大肥鱼拖到我旁边，马上开煮！');
+    showBubble(cooker, S.cookerFace === 'mint' ? '铸币机：' + CFG.tokenRiceCost + ' 🍚 → 1 🪙（双击翻回电饭锅）' : '把大肥鱼拖到我旁边，马上开煮！');
   } else if (c.kind === 'fish'){
     Snd.sfx.bloop();
     c.el.classList.add('fl-wiggle');
@@ -1539,7 +1545,6 @@ function onDrop(c){
     if (c === cooker){ /* 锅被拖走时，让排队的鱼跟着挪 */ requeueFollow(); }
     return;
   }
-  if (S.automation) return;   /* 木屋自动化：鱼会自动进锅，无需手拖 */
   if (S.cookerFace === 'mint'){
     showBubble(cooker, '铸币机不做饭啦～（双击翻回电饭锅）');
     Snd.sfx.err();
@@ -1615,6 +1620,7 @@ function finishCook(){
   var n = irand(CFG.yieldMin + cb, CFG.yieldMax + cb);
   if (isShine) n *= 2;
   if (jackpot) n *= 2;
+  S.stats.fishCooked++; S.stats.riceProduced += n;
   addRice(n);
   Snd.sfx.ding();
   if (isShine || jackpot) Snd.sfx.jackpot();
@@ -1742,7 +1748,7 @@ function tickChef(dt){
   var minting = (S.cookerFace === 'mint');
 
   /* 铸币面：主动到锅边操作铸币（铸币必须由她完成），期间不钓鱼 */
-  if (minting && lv >= 1 && !S.automation){
+  if (minting && lv >= 1){
     releaseAutoFish();
     if (!chefNearFront()){
       chef.target = cookFront();
@@ -1756,7 +1762,7 @@ function tickChef(dt){
   }
 
   /* Lv2+ 自动搬鱼入锅：先凑一批再出发，最多一次搬 3 条 */
-  if (lv >= 2 && cooker && !S.automation && !minting){
+  if (lv >= 2 && cooker && !minting){
     if (!chef.carry) chef.carry = [];
     var carry = chef.carry;
     var room = (cooker.busy ? 0 : 1) + (CFG.queueMax - cooker.queue.length);
@@ -1826,7 +1832,7 @@ function tickChef(dt){
   }
 
   /* 空闲：靠近任意海水区域自动钓鱼（虎鲸娘不需要鱼竿）；Lv3 起产出闪光鱼 */
-  if (!S.automation && (!chef.carry || !chef.carry.length)){
+  if (!chef.carry || !chef.carry.length){
     if (!nearWater()){
       chef.target = waterTarget();
       setChefMode('goto-spot');
@@ -1961,7 +1967,8 @@ function updateHint(){
   var el = document.getElementById('fl-hint');
   var loose = looseFish();
   var t;
-  if (!S.flags.fish) t = 'DeepSeek 在海边钓鱼，稍等一下下……';
+  if (S.flags.finished) t = '🎉 已通关！感谢陪伴～';
+  else if (!S.flags.fish) t = 'DeepSeek 在海边钓鱼，稍等一下下……';
   else if (loose > 0 && !S.flags.cook) t = '👉 按住一条大肥鱼，拖到电饭锅旁边！';
   else if (cooker && cooker.busy) t = '炊饭中……咕嘟咕嘟～';
   else if (!S.flags.rice) t = '再拖一条鱼过去，第一碗大白饭马上好！';
@@ -1975,8 +1982,7 @@ function updateHint(){
   else if (!S.flags.shop) t = '🛒 Grok 的商店开张了！右上角用金币购物';
   else if (S.qwen && !S.flags.qwen1) t = '📋 Qwen 委托一：把全员 1、2 技能升满';
   else if (S.qwen && !S.flags.qwen2) t = '📋 Qwen 委托二：建造露天舞台（15000 金）';
-   else if (S.qwen && !S.flags.qwen3) t = '📋 Qwen 委托三：购买神秘蛋（50000 金）';
-   else if (S.automation) t = '🏠 自动化中！把钓到的鱼放岛上就行，坐等产出～';
+   else if (S.qwen && !S.flags.qwen3) t = '📋 Qwen 委托三：购买神秘蛋（20000 金）';
   else t = '🎉 家园扩建计划筹备中～';
   el.textContent = t;
 }
@@ -2036,7 +2042,6 @@ function showIntro(key, lines, onDone){
   ov.onclick = function(){ clearTimeout(timer); next(); };
   next();
 }
-/* 木屋自动化存档：没有书桌/电饭锅，只恢复 HUD 与阶段目标 */
 /* ================= 登场教程大卡片 ================= */
 var tutorialCb = null;
 function tutorialFor(key){
@@ -2099,20 +2104,17 @@ function revealStage2(){
   document.getElementById('fl-res-pages').classList.remove('fl-off');
   GOALS.forEach(function(g){
     if (g.id === 'p500') g.hidden = false;
-    if (g.id === 'desk' && S.automation) g.hidden = true;
   });
   renderGoals(); updateHUD();
 }
 function spawnStage2(){
   if (deskCard) return;
-  if (!S.automation){
-    var dpe = layoutPos('desk');
-    var dp = dpe ? { x: dpe.x, y: dpe.y } : (savedDeskPos || { x: islandW * 0.70, y: islandH * 0.40 });
-    deskCard = addCard('desk', clamp(dp.x, 8, islandW - 132), clamp(dp.y, 18, islandH - 150));
-    var ppe = layoutPos('page');
-    var pp = ppe ? { x: ppe.x, y: ppe.y } : (savedPagePos || { x: islandW * 0.70 + 10, y: islandH * 0.40 + 158 });
-    pageCard = addCard('page', clamp(pp.x, 8, islandW - 110), clamp(pp.y, 18, islandH - 130));
-  }
+  var dpe = layoutPos('desk');
+  var dp = dpe ? { x: dpe.x, y: dpe.y } : (savedDeskPos || { x: islandW * 0.70, y: islandH * 0.40 });
+  deskCard = addCard('desk', clamp(dp.x, 8, islandW - 132), clamp(dp.y, 18, islandH - 150));
+  var ppe = layoutPos('page');
+  var pp = ppe ? { x: ppe.x, y: ppe.y } : (savedPagePos || { x: islandW * 0.70 + 10, y: islandH * 0.40 + 158 });
+  pageCard = addCard('page', clamp(pp.x, 8, islandW - 110), clamp(pp.y, 18, islandH - 130));
   pageCard.el.querySelector('.fl-badge').textContent = S.pages;
   document.getElementById('fl-res-pages').classList.remove('fl-off');
   GOALS.forEach(function(g){ if (g.id === 'desk' || g.id === 'p500') g.hidden = false; });
@@ -2367,35 +2369,6 @@ function tickClaude(dt){
   }
   if (bookReadTick(claudeCard, dt)) return;
   if (moodRest(claudeCard, dt)) return;
-  if (S.automation){
-    if (claudeCard.hungry) return;
-    claudeT -= dt;
-    if (claudeT <= 0){
-      claudeT = CFG.claudeWriteMs / eff('claude') + rand(-400, 1500);
-      var ah = housePos();
-      var acb = S.buffs.claude || 0;
-      if (S.pages >= CFG.bookPageCost){
-        S.pages -= CFG.bookPageCost;
-        if (pageCard) pageCard.el.querySelector('.fl-badge').textContent = S.pages;
-        addBooks(Math.pow(2, Math.max(0, (S.sk1.claude || 0) - 1)));
-        moodWork(claudeCard);
-        addFtext(ah[0], ah[1] - 46, '-100 📖 +1 📚', 'fl-gold');
-      } else {
-        var an = irand(5 + acb, 10 + acb);
-        Snd.sfx.scratch(0.55);
-        addPages(an);
-        moodWork(claudeCard);
-        addFtext(ah[0], ah[1] - 46, '+' + an + ' 📖');
-      }
-    }
-    claudeCard.wT2 = (claudeCard.wT2 || 0) - dt;
-    if (claudeCard.wT2 <= 0 && !claudeCard.target){
-      claudeCard.wT2 = rand(5200, 9500);
-      claudeCard.target = [rand(24, islandW - claudeCard.w - 24), rand(40, islandH - claudeCard.h - 24)];
-    }
-    if (claudeCard.target) stepToward(claudeCard, dt, 80);
-    return;
-  }
   if (claudeCard.hungry) return;
   if (claudeCard.mode === 'writing'){
     claudeCard.wT -= dt;
@@ -2622,12 +2595,19 @@ function tickSpot(dt){
 function spotCatch(){
   var sp = S.spot;
   var c = spotCenter();
+  sp.mode = 'cool'; sp.t = 850;
+  if (looseFish() >= CFG.fishLooseMax){   /* 地上散鱼与自动钓鱼共用同一上限，堆满时钓不上来 */
+    fsLabel('鱼太多啦！先煮掉一些');
+    Snd.sfx.esc();
+    spotPaint();
+    return;
+  }
   spawnFishAt([clamp(c[0] - 46 + rand(0, 60), 10, islandW - 120), clamp(c[1] - 66, 40, islandH - 130)]);
   splash(c[0], c[1] + 6);
   Snd.sfx.splash();
   Snd.sfx.fishOn();
   addFtext(c[0], c[1] - 34, '+1 🐟');
-  sp.mode = 'cool'; sp.t = 850;
+  S.stats.spotCatches++;
   spotPaint(); fsLabel('钓到啦！');
 }
 
@@ -2676,10 +2656,10 @@ function countStroke(ddx, ddy){
   var k = deskCard.strokes;
   var q = clamp(1 - Math.abs(ddx) / Math.max(1, ddy * 0.30), 0, 1);   /* 越接近竖直越好 */
   deskCard.qs.push(q);
+  var good = q > 0.6;
   Snd.sfx.scratch(good ? 1 : q);
   var inks = deskCard.el.querySelectorAll('.desk-inks i');
   var pips = deskCard.el.querySelectorAll('.desk-pips i');
-  var good = q > 0.6;
   if (inks[k]){ inks[k].classList.add('on'); if (good) inks[k].classList.add('good'); }
   if (pips[k]){ pips[k].classList.add('on'); if (good) pips[k].classList.add('good'); }
   deskCard.strokes = k + 1;
@@ -2719,7 +2699,7 @@ function pageDone(){
   }
 }
 function addPages(n){
-  S.pages += n;
+  S.pages += n; S.stats.pagesWritten += n;
   if (pageCard) pageCard.el.querySelector('.fl-badge').textContent = S.pages;
   [[100,'已经 100 页啦！'],[250,'250 页！书越来越厚了～'],[400,'400 页！快成书了！'],[499,'就差一页！！']].forEach(function(m){
     var key = 'p' + m[0];
@@ -2748,13 +2728,13 @@ function pageHoverFeedback(c){
 var upOpen = false;
 function addTokens(n){
   S.tokens += n;
-  if (n > 0) Snd.sfx.coin();
+  if (n > 0){ Snd.sfx.coin(); S.stats.tokensMinted += n; }
   if (tokenCard) tokenCard.el.querySelector('.fl-badge').textContent = S.tokens;
   updateHUD(); persist();
 }
 function addBooks(n){
   S.books += n;
-  if (n > 0) Snd.sfx.bind();
+  if (n > 0){ Snd.sfx.bind(); S.stats.booksBound += n; }
   if (n > 0 && !S.flags.bookEat){ S.flags.bookEat = true; toast('📚 重置卡可以拖给角色使用：心情回满 + 产能 +1%'); }
   if (!bookCard && S.books > 0){
     var bke = layoutPos('book');
@@ -3104,7 +3084,7 @@ function tryFlip(c){
     setTimeout(function(){
       S.cookerFace = S.cookerFace === 'cook' ? 'mint' : 'cook';
       applyCookerFace();
-      showBubble(cooker, S.cookerFace === 'mint' ? '翻面：铸币机！（10 🍚 → 1 🪙）' : '翻面：电饭锅！（大肥鱼 → 大白饭）');
+      showBubble(cooker, S.cookerFace === 'mint' ? '翻面：铸币机！（' + CFG.tokenRiceCost + ' 🍚 → 1 🪙）' : '翻面：电饭锅！（大肥鱼 → 大白饭）');
       persist();
     }, 150);
   } else if (c === deskCard){
@@ -3119,7 +3099,7 @@ function tryFlip(c){
   }
 }
 
-/* 做饭 MAX：DeepSeek 占用电饭锅，10 🍚 → 1 🪙 */
+/* 做饭 MAX：DeepSeek 占用电饭锅铸币（100 🍚 → 1 🪙）；余粮铸币（sk3）在阈值上自动额外铸 */
 var foundryT = 0;
 function tickFoundry(dt){
   if ((S.sk1.chef || 0) < 1 || S.cookerFace !== 'mint' || !cooker || cooker.busy) return;
@@ -3203,8 +3183,9 @@ function sk2Desc(key, lv){
                            : '当前：应援持续时间 +' + add + ' 秒';
   }
   var moodTxt = '心情消耗 -' + [15, 30, 50][(lv || 1) - 1] + '%';
-  return (lv || 0) === 0 ? '学习后：工作效率 +50%，大白饭消耗 ×1.5，' + moodTxt
-                         : '当前：工作效率 +' + (50 * lv) + '%，大白饭消耗 ×1.5，' + moodTxt;
+  var effTxt = key === 'chef' ? '（效率同时加速煮饭、铸币和钓鱼）' : '';
+  return (lv || 0) === 0 ? '学习后：工作效率 +50%' + effTxt + '，大白饭消耗 ×1.5，' + moodTxt
+                         : '当前：工作效率 +' + (50 * lv) + '%' + effTxt + '，大白饭消耗 ×1.5，' + moodTxt;
 }
 function eff(key){ return (1 + 0.5 * (S.sk2[key] || 0)) * (1 + 0.01 * (S.bookBoost[key] || 0)) * (tempo[key] > 0 ? (S.flags.stage ? 1.75 : 1.5) : 1); }
 function glmMoveBonus(){ return [0, 0.05, 0.10, 0.15][S.sk3.glm || 0] || 0; }   /* GLM 疾风：全场移动速度 */
@@ -3245,7 +3226,7 @@ function tickChefSkill(dt){
 }
 function addBars(n){
   S.bars += n;
-  if (n > 0) Snd.sfx.bar();
+  if (n > 0){ Snd.sfx.bar(); S.stats.barsSmelted += n; }
   if (!barsCard){
     var be = layoutPos('bar');
     barsCard = addCard('bar', be ? clamp(be.x, 8, islandW - 110) : clamp((smelterCard ? smelterCard.x - 120 : islandW * 0.08), 8, islandW - 110),
@@ -3258,7 +3239,7 @@ function addBars(n){
 }
 function addGold(n){
   S.gold = Math.max(0, S.gold + n);
-  if (n > 0) Snd.sfx.coin();
+  if (n > 0){ Snd.sfx.coin(); S.stats.goldEarned += n; }
   if (goldCard) goldCard.el.querySelector('.fl-badge').textContent = S.gold;
   updateHUD(); persist();
 }
@@ -3410,17 +3391,15 @@ function checkQwenTasks(){
   if (!S.flags.qwen1){
     if (!qwenTask1Done()) return;
     S.flags.qwen1 = true;
-    addTokens(10);
     markGoal('qwen1');
-    toast('🎉 Qwen 委托一完成：全员 1、2 技能满级！奖励 10 Token');
+    toast('🎉 Qwen 委托一完成：全员 1、2 技能满级！');
     if (qwenCard) showBubble(qwenCard, '委托一完成。效率即正义。', 4200);
   }
   if (!S.flags.qwen2){
     if (!S.flags.stage) return;
     S.flags.qwen2 = true;
-    addTokens(20);
     markGoal('qwen2');
-    toast('🎉 Qwen 委托二完成：露天舞台建成！奖励 20 Token');
+    toast('🎉 Qwen 委托二完成：露天舞台建成！');
     if (qwenCard) showBubble(qwenCard, '舞台很棒。下一步，把神秘蛋买回来。', 4000);
   }
   if (!S.flags.qwen3 && S.flags.egg){
@@ -3457,6 +3436,7 @@ function tickQwen(dt){
       var buffPct = S.flags.stage ? 75 : 50;
       var buffMs = (S.flags.stage ? 15000 : 10000) + [0, 3, 5, 8][S.sk2.qwen || 0] * 1000;
       tempo[tkey] = buffMs;
+      S.stats.cheers++;
       var tcc = cardCenter(chars[tkey]);
       addFtext(tcc[0], chars[tkey].y - 8, '⚡ 效率 +' + buffPct + '% ' + (buffMs / 1000) + 's', 'fl-gold');
       showBubble(qwenCard, pick(['加油哦，效率拉满！', '摸摸头，干劲十足～', '给你充能！']), 2400);
@@ -3607,6 +3587,25 @@ function tickFinale(dt){
 function showFinale(){
   var ov = document.getElementById('fl-finale');
   document.getElementById('fl-finale-text').innerHTML = 'GPT龙娘 吞下了 <b>' + S.gptTotal + '</b> 金币，<br>带着全岛的卡片冲上云霄。';
+  S.flags.finished = true;
+  var st = S.stats;
+  function fmt(n){ return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+  var rows = [
+    ['🐟', '煮掉的鱼', st.fishCooked],
+    ['🍚', '产出大白饭', st.riceProduced],
+    ['📖', '写出的书页', st.pagesWritten],
+    ['📚', '装订重置卡', st.booksBound],
+    ['🪙', '铸出 Token', st.tokensMinted],
+    ['🥈', '炼出银条', st.barsSmelted],
+    ['🎣', '钓鱼点钓获', st.spotCatches],
+    ['⚡', 'Qwen 应援', st.cheers],
+    ['💰', '累计金币收入', st.goldEarned],
+    ['🥚', 'GPT 喂餐', S.gptFed + ' / 50'],
+    ['⏱️', '游玩时长', fmt(Math.max(1, Math.round(st.playMs / 60000))) + ' 分钟']
+  ];
+  document.getElementById('fl-finale-stats').innerHTML = rows.map(function(r){
+    return '<li><span class="ic">' + r[0] + '</span><span>' + r[1] + '</span><b>' + (typeof r[2] === 'number' ? fmt(r[2]) : r[2]) + '</b></li>';
+  }).join('');
   ov.classList.add('fl-show');
   document.getElementById('fl-finale-ok').onclick = function(){
     ov.classList.remove('fl-show');
@@ -3614,6 +3613,7 @@ function showFinale(){
     finale = null;
     if (gptCard){ gptCard.x = islandW / 2 - gptCard.w / 2; gptCard.y = islandH / 2 - gptCard.h / 2; layout(gptCard); }
     persist();
+    updateHint();
   };
 }
 function tickTempo(dt){
@@ -3653,8 +3653,8 @@ var SHOP = [
   { icon:'🏠', name:'建造木屋', sub:'岛民的家：全员心情恢复 +25%', cost:5000, once:'house', apply:function(){ buildHouse(); } },
   { icon:'⛲', name:'喷水池', sub:'设立岛中央：全员金币收益 +50%', cost:10000, once:'fountain', apply:function(){ spawnFountain(); } },
   { icon:'🎪', name:'露天舞台', sub:'Qwen 应援强化：+75% · 15 秒', cost:15000, once:'stage', apply:function(){ spawnStage(); } },
-  { icon:'🥚', name:'神秘蛋', sub:'它难道...要孵化了！', cost:50000, once:'egg', apply:function(){ spawnEgg(); } },
-  { icon:'💰', name:'Grok 金币 ×50', sub:'卖出 1 张重置卡', cost:1, unit:'📚', sell:1, apply:function(){ addGold(50); } },
+  { icon:'🥚', name:'神秘蛋', sub:'它难道...要孵化了！', cost:20000, once:'egg', apply:function(){ spawnEgg(); } },
+  { icon:'💰', name:'Grok 金币 ×100', sub:'卖出 1 张重置卡', cost:1, unit:'📚', sell:1, apply:function(){ addGold(100); } },
   { icon:'💰', name:'Grok 金币 ×50', sub:'卖出 1 根银条', cost:1, unit:'🥈', sell:1, apply:function(){ addGold(50); } },
   { icon:'💰', name:'Grok 金币 ×100', sub:'卖出 1 枚 Token 币', cost:1, unit:'🪙', sell:1, apply:function(){ addGold(100); } },
   { icon:'🪙', name:'Token 币 ×2', sub:'10 张重置卡兑换', cost:10, unit:'📚', apply:function(){ addTokens(2); } },
@@ -3840,46 +3840,14 @@ function buildHouse(){
   S.flags.house = true;
   spawnHouse();
   confetti();
-  toast('🏠 木屋建好！全员心情恢复 +50%');
+  toast('🏠 木屋建好！全员心情恢复 +25%');
   showBubble(chef, '有家了……！大家干活都更有劲了～', 3200);
   persist();
 }
-var autoCookT = 0, autoMintT = 0;
 function housePos(){
   var h = document.getElementById('fl-house');
   if (!h) return [islandW/2, islandH/2];
   return [h.offsetLeft + 110, h.offsetTop + 100];
-}
-function tickAuto(dt){
-  if (!S.automation) return;
-  var hp = housePos();
-  autoCookT += dt;
-  var cookNeed = CFG.cookMs / eff('chef');
-  if (autoCookT >= cookNeed){
-    autoCookT = 0;
-    var fishes = cards.filter(function(k){ return (k.kind === 'fish' || k.kind === 'shinefish') && !k.queued; });
-    if (fishes.length){
-      var isShine = fishes[0].kind === 'shinefish';   /* 闪光鱼：大白饭翻倍 */
-      removeCard(fishes[0]);
-      var buff = S.buffs.chef || 0;
-      var jackpot = Math.random() < CFG.jackpot;
-      var n = irand(CFG.yieldMin + buff, CFG.yieldMax + buff);
-      if (isShine) n *= 2;
-      if (jackpot) n *= 2;
-      changeRice(n);
-      addFtext(hp[0], hp[1] - 46, (isShine ? '✨ 闪光鱼！+' : (jackpot ? '大丰收！+' : '+')) + n + ' 🍚', (isShine || jackpot) ? 'fl-gold' : '');
-    }
-  }
-  autoMintT += dt;
-  var mintNeed = CFG.tier2Ms / eff('chef');
-  if (autoMintT >= mintNeed){
-    autoMintT = 0;
-    if (S.rice >= CFG.tokenRiceCost){
-      changeRice(-CFG.tokenRiceCost);
-      addTokens(1);
-      addFtext(hp[0] + 80, hp[1] - 46, '-' + CFG.tokenRiceCost + ' 🍚 +1 🪙', 'fl-gold');
-    }
-  }
 }
 
 /* ---- 地面银矿：时不时出现，点击开采 ---- */
@@ -3986,7 +3954,7 @@ function boot(){
       layout(c);
     });
   });
-  hadSave = restore() && (S.rice > 0 || S.pages > 0 || S.tokens > 0 || S.books > 0 || S.bars > 0 || S.gold > 0 || S.claude || S.glm || S.grok || S.automation || (S.sk1.chef > 0) || (S.sk1.claude > 0) || S.flags.fish || S.flags.cook || S.flags.rice);
+  hadSave = restore() && (S.rice > 0 || S.pages > 0 || S.tokens > 0 || S.books > 0 || S.bars > 0 || S.gold > 0 || S.claude || S.glm || S.grok || (S.sk1.chef > 0) || (S.sk1.claude > 0) || S.flags.fish || S.flags.cook || S.flags.rice);
   if (S.flags.islandBig) island.classList.add('fl-expanded');
   measure();
   decor();
@@ -4180,6 +4148,7 @@ function boot(){
   function frame(t){
     var dt = Math.min(50, t - last); last = t;
     if (S.splashDone && !S.cinematic){
+      S.stats.playMs += dt;
       if (S.flags.house && !S.qwen && !qwenIntroTried){ qwenIntroTried = true; setTimeout(startQwenIntro, 900); }
       if (S.flags.egg && S.flags.house && S.flags.fountain && S.flags.stage && !S.gpt && !gptTried){ gptTried = true; startGptHatch(); }
       tickChef(dt);
@@ -4245,7 +4214,6 @@ function slotSummary(d){
   if (d.grok) names.push('Grok');
   var s = '🍚 ' + (d.rice || 0) + ' · 📖 ' + (d.pages || 0) + ' · 🪙 ' + (d.tokens || 0) + ' · 💰 ' + (d.gold || 0);
   if (names.length) s += ' · ' + names.join('/');
-  if (d.automation) s += ' · 🏠 自动化';
   return s;
 }
 function saveToSlot(i){
@@ -4380,7 +4348,7 @@ window.__fl = {
     snd: Snd,
     state: function(){
     return { rice:S.rice, pages:S.pages, tokens:S.tokens, books:S.books, bars:S.bars, gold:S.gold,
-      automation:S.automation, buffs:JSON.parse(JSON.stringify(S.buffs)),
+      buffs:JSON.parse(JSON.stringify(S.buffs)),
       claude:S.claude, glm:S.glm, grok:S.grok, cinematic:S.cinematic,
       busy:!!(cooker && cooker.busy), queue:(cooker ? cooker.queue.length : 0), carry:(chef && chef.carry ? chef.carry.length : 0),
       glmCarry:(glmCard && glmCard.carry ? glmCard.carry.length : 0), glmMode:(glmCard ? glmCard.mode : null), smelterProg:(smelterCard ? smelterCard.prog : 0),
@@ -4432,7 +4400,7 @@ window.__fl = {
     var step = 50, n = Math.round((sec || 1) * 1000 / step);
     for (var i = 0; i < n; i++){
       tickChef(step); tickChefSkill(step); tickCook(step); tickFoundry(step); tickSpot(step); tickHunger(step);
-      tickClaude(step); tickGlm(step); tickGrok(step); tickQwen(step); tickGpt(step); tickTempo(step); tickAuto(step); tickDeposits(step); tickFinale(step);
+      tickClaude(step); tickGlm(step); tickGrok(step); tickQwen(step); tickGpt(step); tickTempo(step); tickDeposits(step); tickFinale(step);
     }
     updateHUD();
     return { rice:S.rice, pages:S.pages, tokens:S.tokens, bars:S.bars, gold:S.gold, fish:looseFish(), mood:JSON.parse(JSON.stringify(S.mood)) };
