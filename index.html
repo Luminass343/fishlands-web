@@ -1021,6 +1021,7 @@ var CFG = {
   spotTapGain: 13,         /* 连点一次的进度 */
   spotDecay: 26,           /* 上钩后进度每秒流失 */
   tokenRiceCost: 100,  /* 铸 1 枚 Token 消耗的大白饭 */
+  mintFloor: 20,       /* 保底饭仓：铸币不得把大白饭吃到这条线以下（防铸币抽干口粮） */
   bookPageCost: 100,   /* 装订 1 张重置卡需要的书页 */
   tier2Ms: 13000,      /* 二级制造（铸币/装订/熔炼出条）耗时，约为做饭的 2 倍 */
   smeltPerBar: 10,     /* 每 10 点熔炼进度 = 1 根劣质银条 */
@@ -2842,9 +2843,9 @@ function renderSkillPanel(c){
       + '</div>';
   } else if (c.key === 'chef'){
     var lv3f = S.sk3.chef || 0;
-    var threshold = CFG.tokenRiceCost + ricePerMin();
+    var threshold = Math.max(CFG.tokenRiceCost + ricePerMin(), CFG.tokenRiceCost + CFG.mintFloor);
     slots += '<div class="fl-skill' + (lv3f > 0 ? ' fl-learned' : '') + '"><b>余粮铸币' + (lv3f > 0 ? ' <span class="fl-stars">' + '★'.repeat(lv3f) + '</span>' : '') + '</b>'
-      + '<div class="fl-skill-now">大白饭高于「每分钟消耗 + ' + CFG.tokenRiceCost + '」（当前阈值 ' + Math.round(threshold) + '）时自动铸币；' + ([0,3,5,10][lv3f] || 0) + '% 概率不消耗大白饭</div>'
+      + '<div class="fl-skill-now">大白饭高于「每分钟消耗 + ' + CFG.tokenRiceCost + '」且至少留 ' + CFG.mintFloor + ' 碗保底（当前阈值 ' + Math.round(threshold) + '）时自动铸币；' + ([0,3,5,10][lv3f] || 0) + '% 概率不消耗大白饭</div>'
       + (lv3f < 3 ? '<button type="button" data-slot="3">学习到 ' + (lv3f + 1) + ' 级（' + skillCost('chef', lv3f) + ' 🪙）</button>' : '<em class="ok">已满级 ★3</em>')
       + '</div>';
   } else if (c.key === 'qwen'){
@@ -3105,22 +3106,22 @@ function tickFoundry(dt){
   if ((S.sk1.chef || 0) < 1 || S.cookerFace !== 'mint' || !cooker || cooker.busy) return;
   if (chef && chef.resting) return;
   var near = chefNearFront();
-  var canWork = near && !chef.hungry && S.rice >= CFG.tokenRiceCost;
+  var canWork = near && !chef.hungry && S.rice >= CFG.tokenRiceCost + CFG.mintFloor;
   cooker.el.classList.toggle('fl-cooking', near && canWork);
   chef.el.classList.toggle('fl-stir', near && canWork);
   if (S.chefMode === 'idle' && !chef.target && !near) chef.target = cookFront();
   if (!near || chef.hungry) return;
-  if (S.rice < CFG.tokenRiceCost){
+  if (S.rice < CFG.tokenRiceCost + CFG.mintFloor){
     if (near){
       S.mintBlockedT = (S.mintBlockedT || 0) + dt;
       if (S.mintBlockedT > 4000){
         S.mintBlockedT = 0;
         tryFlip(cooker);
-        showBubble(chef, '啊没有了！大白饭不够铸币啦！');
+        showBubble(chef, '大白饭要留 ' + CFG.mintFloor + ' 碗保底，铸不了币啦！');
         return;
       }
     }
-    if (Math.random() < 0.015) chefBubble('大白饭不够 ' + CFG.tokenRiceCost + ' 碗，铸不了币…去钓点鱼吧！');
+    if (Math.random() < 0.015) chefBubble('大白饭不足 ' + (CFG.tokenRiceCost + CFG.mintFloor) + ' 碗（要留 ' + CFG.mintFloor + ' 碗保底），铸不了币…去钓点鱼吧！');
     return;
   }
   S.mintBlockedT = 0;
@@ -3209,7 +3210,7 @@ var autoMintPassiveT = 0;
 function tickChefSkill(dt){
   var lv = S.sk3.chef || 0;
   if (!chef || lv < 1) return;
-  var need = CFG.tokenRiceCost + ricePerMin();
+  var need = Math.max(CFG.tokenRiceCost + ricePerMin(), CFG.tokenRiceCost + CFG.mintFloor);
   if (S.rice < need){ autoMintPassiveT = 0; return; }
   autoMintPassiveT += dt;
   var per = CFG.tier2Ms / eff('chef');
