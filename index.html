@@ -1003,9 +1003,9 @@ var CFG = {
   cookRadius: 120,
   queueMax: 10,
   fishLooseMax: 4,
-  fishEvery: [6000, 10000],
+  fishEvery: [9000, 15000],
   firstFishMs: 2600,
-  yieldMin: 8, yieldMax: 14,
+  yieldMin: 12, yieldMax: 21,
   jackpot: 0.15,
   chefSpeed: 100,
   pageGoal: 500,
@@ -1241,10 +1241,10 @@ var GOALS = [
   { id:'silver',  t:'GLM 巡岛发现宝藏，把银粒/银块放进熔炼炉', hidden:true },
   { id:'grok',    t:'铸出 10 根劣质银条，迎接 Grok 大小姐', hidden:true },
   { id:'shop',    t:'用 Grok 金币在商店买点东西', hidden:true },
-  { id:'next',    t:'家园扩建计划……敬请期待', hidden:true },
+   { id:'next',    t:'完成 Qwen 委托，孵化最后的伙伴', hidden:true },
   { id:'qwen1',   t:'Qwen 委托一：全员 1、2 技能升满', hidden:true },
   { id:'qwen2',   t:'Qwen 委托二：建造露天舞台（15000 金）', hidden:true },
-  { id:'qwen3',   t:'Qwen 委托三：？？？（待公布）', hidden:true },
+   { id:'qwen3',   t:'Qwen 委托三：购买神秘蛋（50000 金）', hidden:true },
 ];
 
 /* ================= persist ================= */
@@ -1574,7 +1574,8 @@ function requeueFollow(){
 }
 
 /* ================= cooking ================= */
-function queueSlot(i){ return [cooker.x - 122 + i*6, cooker.y + 34 - i*9]; }
+/* 鱼进锅后从锅左侧水平叠入，避免斜着堆在锅外像又生成了一批鱼 */
+function queueSlot(i){ return [cooker.x - 112 + i * 18, cooker.y + 44 - Math.min(i, 3) * 2]; }
 function cookFront(){
   var cc = cardCenter(cooker);
   return [cc[0], cc[1] + 62];
@@ -1754,7 +1755,7 @@ function tickChef(dt){
     return;
   }
 
-  /* Lv2+ 自动搬鱼入锅：一次最多搬 3 条，能下锅的下锅、下不去的排队 */
+  /* Lv2+ 自动搬鱼入锅：先凑一批再出发，最多一次搬 3 条 */
   if (lv >= 2 && cooker && !S.automation && !minting){
     if (!chef.carry) chef.carry = [];
     var carry = chef.carry;
@@ -1778,16 +1779,29 @@ function tickChef(dt){
         return;
       }
     } else if (room > 0){
+      var available = looseFish();
+      var batchSize = Math.min(3, room);
+      /* 鱼刚出现时先留出集批窗口，避免拿到一条就立刻返锅 */
+      if (available > 0 && available < batchSize){
+        chef.batchWaitT = (chef.batchWaitT || 0) + dt;
+      } else if (available >= batchSize){
+        chef.batchWaitT = 0;
+      }
+      if (available > 0 && available < batchSize && (chef.batchWaitT || 0) < 12000) {
+        /* 继续留在海边钓鱼，等下一条鱼加入这一批 */
+      } else {
       var picks = [];
       cards.forEach(function(k){
         if ((k.kind === 'fish' || k.kind === 'shinefish') && !k.queued && picks.length < Math.min(3, room)) picks.push(k);
       });
       if (picks.length){
         chef.carry = picks;
+        chef.batchWaitT = 0;
         picks.forEach(function(f){ f.queued = true; f.el.classList.add('fl-locked'); });
         var pfc = cardCenter(picks[0]);
         chef.target = [pfc[0], pfc[1]];
         chef.autoPhase = 'toFish';
+      }
       }
     }
   }
@@ -1822,7 +1836,7 @@ function tickChef(dt){
     S.fishingT = (S.fishingT || 0) - dt;
     if (S.fishingT <= 0){
       S.fishingT = rand(CFG.fishEvery[0], CFG.fishEvery[1]) / eff('chef');
-      if (looseFish() < 6){
+      if (looseFish() < CFG.fishLooseMax){
         var kind = lv >= 3 ? 'shinefish' : 'fish';
         var p = [clamp(chef.x + 40 * chef.facing + rand(-10, 20), 12, islandW - 130),
                  clamp(chef.y + 26, 42, islandH - 130)];
@@ -1961,7 +1975,8 @@ function updateHint(){
   else if (!S.flags.shop) t = '🛒 Grok 的商店开张了！右上角用金币购物';
   else if (S.qwen && !S.flags.qwen1) t = '📋 Qwen 委托一：把全员 1、2 技能升满';
   else if (S.qwen && !S.flags.qwen2) t = '📋 Qwen 委托二：建造露天舞台（15000 金）';
-  else if (S.automation) t = '🏠 自动化中！把钓到的鱼放岛上就行，坐等产出～';
+   else if (S.qwen && !S.flags.qwen3) t = '📋 Qwen 委托三：购买神秘蛋（50000 金）';
+   else if (S.automation) t = '🏠 自动化中！把钓到的鱼放岛上就行，坐等产出～';
   else t = '🎉 家园扩建计划筹备中～';
   el.textContent = t;
 }
@@ -3406,7 +3421,13 @@ function checkQwenTasks(){
     addTokens(20);
     markGoal('qwen2');
     toast('🎉 Qwen 委托二完成：露天舞台建成！奖励 20 Token');
-    if (qwenCard) showBubble(qwenCard, '舞台很棒。委托三……容我想想。', 4000);
+    if (qwenCard) showBubble(qwenCard, '舞台很棒。下一步，把神秘蛋买回来。', 4000);
+  }
+  if (!S.flags.qwen3 && S.flags.egg){
+    S.flags.qwen3 = true;
+    markGoal('qwen3');
+    toast('🎉 Qwen 委托三完成：神秘蛋已购入！');
+    if (qwenCard) showBubble(qwenCard, '蛋已经买来了。接下来，等它孵化。', 4000);
   }
 }
 function qwenSpendMood(){
@@ -3637,10 +3658,6 @@ var SHOP = [
   { icon:'💰', name:'Grok 金币 ×50', sub:'卖出 1 根银条', cost:1, unit:'🥈', sell:1, apply:function(){ addGold(50); } },
   { icon:'💰', name:'Grok 金币 ×100', sub:'卖出 1 枚 Token 币', cost:1, unit:'🪙', sell:1, apply:function(){ addGold(100); } },
   { icon:'🪙', name:'Token 币 ×2', sub:'10 张重置卡兑换', cost:10, unit:'📚', apply:function(){ addTokens(2); } },
-  { icon:'❓', name:'？？？', sub:'敬请期待', locked:true },
-  { icon:'❓', name:'？？？', sub:'敬请期待', locked:true },
-  { icon:'❓', name:'？？？', sub:'敬请期待', locked:true },
-  { icon:'❓', name:'？？？', sub:'敬请期待', locked:true },
 ];
 function renderShop(){
   document.getElementById('fl-shop-gold').textContent = '💰 ' + S.gold + ' · 📚 ' + S.books;
@@ -3667,6 +3684,11 @@ function renderShop(){
         else { S.gold -= it.cost; if (goldCard) goldCard.el.querySelector('.fl-badge').textContent = S.gold; }
         it.apply();
         if (it.once) S.flags[it.once] = true;   /* 一次性商品：购买即置标志 */
+        if (it.once === 'egg' && S.qwen && !S.flags.qwen3){
+          S.flags.qwen3 = true;
+          markGoal('qwen3');
+          toast('🎉 Qwen 委托三完成：神秘蛋已购入！');
+        }
         checkQwenTasks();
         checkEggHatch();
         Snd.sfx.buy();
@@ -4410,7 +4432,7 @@ window.__fl = {
     var step = 50, n = Math.round((sec || 1) * 1000 / step);
     for (var i = 0; i < n; i++){
       tickChef(step); tickChefSkill(step); tickCook(step); tickFoundry(step); tickSpot(step); tickHunger(step);
-      tickClaude(step); tickGlm(step); tickGrok(step); tickQwen(step); tickGpt(step); tickTempo(step); tickAuto(step); tickDeposits(step);
+      tickClaude(step); tickGlm(step); tickGrok(step); tickQwen(step); tickGpt(step); tickTempo(step); tickAuto(step); tickDeposits(step); tickFinale(step);
     }
     updateHUD();
     return { rice:S.rice, pages:S.pages, tokens:S.tokens, bars:S.bars, gold:S.gold, fish:looseFish(), mood:JSON.parse(JSON.stringify(S.mood)) };
